@@ -246,7 +246,7 @@ void editHour()
         edit_time_hour = rtc[2];
     }
     
-    led_state[0][edit_time_hour-1] = 255;
+    ledSet('r', edit_time_hour, 255);
     showLeds(10);
 
     if(btn_down_short)
@@ -263,9 +263,9 @@ void editMinute()
     }
     
     int minute_ratio = map(((edit_time_min % 5)*10), 0, 50, 0, 255);
-    int minute = (edit_time_min/5)-1;
-    led_state[2][minute] = 255 - minute_ratio;
-    led_state[2][(minute == 11 ? 0 : minute+1)] = minute_ratio;
+    int minute = (edit_time_min/5);
+    ledSet('b', minute, 255-minute_ratio);
+    ledSet('b', minute+1, minute_ratio);
     showLeds(10);
 
     if(btn_down_short)
@@ -291,17 +291,18 @@ void setupPins()
 
 void showLeds(unsigned long milliseconds)
 {
+    char colors[3] = {'r','g','b'};
     unsigned long starttime = millis();
     unsigned long endtime = starttime;
     while((endtime - starttime) <= milliseconds)
     {
-        for(int p=0; p < 12; p++)
+        for(int p=1; p <= 12; p++)
         {
             for(int c=0; c < 3 ; c++)
             {
-                if(led_state[c][p] > 0)
+                if(ledGet[colors[c]][p] > 0)
                 {
-                    if(p >= 0 || p <= 11)
+                    if(p >= 1 || p <= 12)
                     {
                         if(pin_state[c][p] != 255)
                         {
@@ -310,10 +311,10 @@ void showLeds(unsigned long milliseconds)
                             pin_state[c][p] = 255;
                         }
                     }
-                    delayMicroseconds(map(led_state[c][p], 0, 255, 1, 2000));
+                    delayMicroseconds(map(ledGet[colors[c]][p], 0, 255, 1, 2000));
                 }
 
-                if(p >= 0 || p <= 11)
+                if(p >= 1 || p <= 12)
                 {
                     if(pin_state[c][p] != 0)
                     {
@@ -327,22 +328,23 @@ void showLeds(unsigned long milliseconds)
         endtime = millis();
     }
   
-    for(int p=0; p < 12; p++)
+    for(int p=1; p <= 12; p++)
     {
         for(int c=0; c < 3 ; c++)
         {
-            led_state[c][p] = 0;
+            ledSet[colors[c]][p] = 0;
         }
     }
 }
 
 void ledTest()
 {
+    char colors[3] = {'r','g','b'};
     for(int c=0; c < 3 ; c++)
     {
-        for(int p=0; p < 12; p++)
+        for(int p=1; p <= 12; p++)
         {
-            led_state[c][p] = 255;
+            ledSet(colors[c], p, 255);
             showLeds(50);
         }
     }
@@ -373,18 +375,19 @@ void setupRtc()
 void showTime(int show_hour, int show_minute, int show_second)
 {
     int second_ratio = map(millis() - last_sec_five_millis, 0, 5000, 0, 255);
-    led_state[1][show_second/5] = 255 - second_ratio;
-    led_state[1][((show_second/5) == 11 ? 0 : (show_second/5)+1)] = second_ratio;
-
+    int second = (show_second/5);
+    ledSet('g', second, 255-second_ratio);
+    ledSet('g', second+1, second_ratio);
+    
     int minute_ratio = map(((show_minute % 5)*10), 0, 50, 0, 255);
-    int minute = (show_minute/5)-1;
-    led_state[2][minute] = 255 - minute_ratio;
-    led_state[2][(minute == 11 ? 0 : minute+1)] = minute_ratio;
-
+    int minute = (show_minute/5);
+    ledSet('b', minute, 255-minute_ratio);
+    ledSet('b', minute+1, minute_ration);
+    
     int hour_ratio = map(show_minute, 0, 60, 0, 255);
-    int hour = (show_hour > 12 ? show_hour-12 : show_hour)-1;
-    led_state[0][hour] = 255 - hour_ratio;
-    led_state[0][((hour) == 12 ? 0 : hour+1)] = hour_ratio;
+    int hour = (show_hour > 12 ? show_hour-12 : show_hour);
+    ledSet('r', hour, 255-hour_ratio);
+    ledSet('r', hour+1, hour_ratio);
     
     showLeds(40);
 }
@@ -394,7 +397,7 @@ void showMonth(int show_month, int position)
     show_month = nthClockDigit(show_month, position);
     if(show_month != 0)
     {
-        led_state[0][show_month] = 255;
+        ledSet('r', show_month, 255);
         showLeds(40);
     }
     else
@@ -408,7 +411,7 @@ void showDay(int show_day, int position)
     show_day = nthClockDigit(show_day, position);
     if(show_day != 0)
     {
-        led_state[1][show_day] = 255;
+        ledSet('g', show_day, 255);
         showLeds(40);
     }
     else
@@ -424,7 +427,7 @@ void showYear(int show_year, int position)
     show_year = nthClockDigit(show_year, position);
     if(show_year != 0)
     {
-        led_state[2][show_year] = 255;
+        ledSet('b', show_year, 255);
         showLeds(40);
     }
     else
@@ -433,7 +436,7 @@ void showYear(int show_year, int position)
     }
 }
 
-char nthClockDigit(int x, int n)
+int nthClockDigit(int x, int n)
 {
     if(n <= 0 || n >= 100){ return 0; }
     if(n == 2 && x > 9 && x <= 19){ return x - 10; } 
@@ -455,6 +458,28 @@ char nthClockDigit(int x, int n)
     if(n == 1 && x > 69 && x < 80){ return 7; }
     if(n == 1 && x > 79 && x < 90){ return 8; }
     if(n == 1 && x > 89 && x < 100){ return 9; }
+}
+
+void ledSet(char color, int led, int intensity)
+{
+    if(led > 12){ led = led - 12; }
+    if(led < 1){ led = led + 12; }
+    if(color == 'r'){ color = 0; }
+    else if(color == 'g'){ color = 1; }
+    else if(color == 'b'){ color = 2; }
+    else{ color = 0; }
+    led_state[color][led-1];
+}
+
+int ledGet(char color, int led)
+{
+    if(led > 12){ led = led - 12; }
+    if(led < 1){ led = led + 12; }
+    if(color == 'r'){ color = 0; }
+    else if(color == 'g'){ color = 1; }
+    else if(color == 'b'){ color = 2; }
+    else{ color = 0; }
+    return led_state[color][led-1];
 }
 
 void checkButtonState()
