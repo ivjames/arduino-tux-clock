@@ -1,104 +1,125 @@
 #include <Wire.h>
+
+//Library found at:
+//http://www.dfrobot.com/image/data/DFR0151/V1.1/Arduino%20library.zip
 #include <DS1307.h>
 
-//LED pin setup
-int leds[13] = {A3,4,7,8,9,10,11,12,13,A0,A1,A2};
-int colors[4] = {6,5,3};
+//Pin setup
+const int LED_CATD_PIN[13] = {A3,4,7,8,9,10,11,12,13,A0,A1,A2};
+const int LED_ANOD_PIN[4] = {6,5,3};
+const int BTN_PIN = A7;
 
 //Pushbutton
-int BTN_PIN = A7;
-bool BTN_DOWN_SHORT = false;
-bool BTN_DOWN_LONG = false;
-bool BTN_IGNORE = false;
-bool BTN_WAS_DOWN;
-unsigned long BTN_DOWN_STARTED = 0;
+bool btn_down_short = false;
+bool btn_down_long = false;
+bool btn_ignore = false;
+bool btn_was_down;
+unsigned long btn_down_started = 0;
 
-//Current LED pin output (memory)
+//Contains the current led output
 int pin_state[3][13] = {
     {0,0,0,0,0,0,0,0,0,0,0,0},
     {0,0,0,0,0,0,0,0,0,0,0,0},
     {0,0,0,0,0,0,0,0,0,0,0,0}
 };
 
-//Requested LED pin output
+//Contains led output to be drawn on the next request
 int led_state[3][13] = {
     {0,0,0,0,0,0,0,0,0,0,0,0},
     {0,0,0,0,0,0,0,0,0,0,0,0},
     {0,0,0,0,0,0,0,0,0,0,0,0}
 };
 
-//Needed to keep track of milliseconds
-int prev_sec_five = 0;
-unsigned long millisec_five = 0;
+//Keep track of milliseconds between seconds
+int last_sec_five = 0;
+unsigned long last_sec_five_millis = 0;
 
 //Needed to keep track of time edit inputs
-int EDIT_TIME_HOUR = 1;
-int EDIT_TIME_MIN = 1;
+int edit_time_hour = 1;
+int edit_time_min = 1;
 
 //RTC time
 int rtc[7];
+unsigned long rtc_last_refreshed = 0;
 
 //The state to keep track of navigation
-String STATE = "";
+String state = "";
 
 void setup()
 {
     Serial.begin(9600);
 
-    STATE = "rtc_setup";
+    state = "rtc_setup";
     setupRtc();
 
-    STATE = "setup_pins";
+    state = "setup_pins";
     setupPins();
 
-    STATE = "led_test";
+    state = "led_test";
     ledTest();
 }
 
 void loop()
 {
-    doLoopChores();
+    checkButtonState();
 
-    if(STATE == "edit_minute")
+    //Refresh RTC time buffer every minute
+    if(millis() - rtc_last_refreshed > 1000 || rtc_last_refreshed > millis())
     {
-        if(BTN_DOWN_LONG)
+        rtc_last_refreshed = millis();
+        RTC.get(rtc, true);
+    }
+    else
+    {
+        RTC.get(rtc, false);
+    }
+    
+    //Keep track of milliseconds between each multiples of 5 seconds
+    if(rtc[0]/5 != last_sec_five)
+    {
+        last_sec_five = rtc[0]/5;
+        last_sec_five_millis = millis();
+    }
+    
+    if(state == "edit_minute")
+    {
+        if(btn_down_long)
         {
             //User just finished editing the time, set the entered time in RTC
-            setTime(17, 1, 1, EDIT_TIME_HOUR, EDIT_TIME_MIN, 0, 7);
-            STATE = "show_time";
+            setTime(17, 1, 1, edit_time_hour, edit_time_min, 0, 7);
+            state = "show_time";
         }
         else
         {
             //The time is currently being edited, the user is entering the minute
-            EDIT_TIME_MIN = editMinute(EDIT_TIME_MIN);
+            edit_time_min = editMinute(edit_time_min);
         }
     }
-    else if(STATE == "edit_hour")
+    else if(state == "edit_hour")
     {
-        if(BTN_DOWN_LONG)
+        if(btn_down_long)
         {
             //Enter minute edit process
             editMinute(rtc[1]);
-            STATE = "edit_minute";
+            state = "edit_minute";
         }
         else
         {
             //The time is currently being edited, the user is entering the hour
-            EDIT_TIME_HOUR = editHour(EDIT_TIME_HOUR);
+            edit_time_hour = editHour(edit_time_hour);
         }
     }
     else
     {
-        if(BTN_DOWN_LONG)
+        if(btn_down_long)
         {
             //Enter time editing mode, starting with editing the hour
             editHour(rtc[2]);
-            STATE = "edit_hour";
+            state = "edit_hour";
         }
         else
         {
-            //Show the current time for 10 milliseconds
-            showTime(rtc[2], rtc[1], rtc[0], 10);
+            showTime(rtc[2], rtc[1], rtc[0]);
         }
     }
 }
@@ -126,7 +147,7 @@ int editMinute(int value)
     led_state[2][(minute == 11 ? 0 : minute+1)] = minute_ratio;
     showLeds(10);
 
-    if(BTN_DOWN_SHORT)
+    if(btn_down_short)
     {
         value = (value > 60 ? value = 1 : value + 1);
     }
@@ -139,7 +160,7 @@ int editHour(int value)
     led_state[0][value-1] = 255;
     showLeds(10);
 
-    if(BTN_DOWN_SHORT)
+    if(btn_down_short)
     {
         value = (value > 11 ? value = 1 : value + 1);
     }
@@ -151,14 +172,14 @@ void setupPins()
 {
     for(int pin=0; pin < 12; pin++)
     {
-        pinMode(leds[pin], OUTPUT);
-        digitalWrite(leds[pin], HIGH);
+        pinMode(LED_CATD_PIN[pin], OUTPUT);
+        digitalWrite(LED_CATD_PIN[pin], HIGH);
     }
 
     for(int color=0; color < 3; color++)
     {
-        pinMode(colors[color], OUTPUT);
-        digitalWrite(colors[color], LOW);
+        pinMode(LED_ANOD_PIN[color], OUTPUT);
+        digitalWrite(LED_ANOD_PIN[color], LOW);
     }
 }
 
@@ -174,10 +195,27 @@ void showLeds(unsigned long milliseconds)
             {
                 if(led_state[c][p] > 0)
                 {
-                    setLed(p, c, 255);
+                    if(p >= 0 || p <= 11)
+                    {
+                        if(pin_state[c][p] != 255)
+                        {
+                            digitalWrite(LED_ANOD_PIN[c], HIGH);
+                            digitalWrite(LED_CATD_PIN[p], LOW);
+                            pin_state[c][p] = 255;
+                        }
+                    }
                     delayMicroseconds(map(led_state[c][p], 0, 255, 1, 2000));
                 }
-                setLed(p, c, 0);
+
+                if(p >= 0 || p <= 11)
+                {
+                    if(pin_state[c][p] != 0)
+                    {
+                        digitalWrite(LED_ANOD_PIN[c], LOW);
+                        digitalWrite(LED_CATD_PIN[p], HIGH);
+                        pin_state[c][p] = 0;
+                    }
+                }
             }
         }
         endtime = millis();
@@ -189,29 +227,6 @@ void showLeds(unsigned long milliseconds)
         {
             led_state[c][p] = 0;
         }
-    }
-}
-
-void setLed(int hour, int col, int intensity)
-{
-    if(hour < 0 || hour > 11)
-    {
-        return;
-    }
-
-    if(pin_state[col][hour] != intensity)
-    {
-        analogWrite(colors[col], intensity);
-
-        if(intensity == 0)
-        {
-            digitalWrite(leds[hour], HIGH);
-        }
-        else
-        {
-            digitalWrite(leds[hour], LOW);
-        }
-        pin_state[col][hour] = intensity;
     }
 }
 
@@ -249,31 +264,9 @@ void setupRtc()
     RTC.get(rtc, true);
 }
 
-void doLoopChores()
+void showTime(int show_hour, int show_minute, int show_second)
 {
-    checkButtonState();
-    
-    //Refresh RTC time buffer every second
-    if(millis() - millisec_five == 0 || millis() - millisec_five > 1000)
-    {
-        RTC.get(rtc, true);
-    }
-    else
-    {
-        RTC.get(rtc, false);
-    }
-
-    //Update milliseconds in multiples of 5 seconds
-    if(rtc[0]/5 != prev_sec_five)
-    {
-        prev_sec_five = rtc[0]/5;
-        millisec_five = millis();
-    }
-}
-
-void showTime(int show_hour, int show_minute, int show_second, unsigned long milliseconds)
-{
-    int second_ratio = map(millis() - millisec_five, 0, 5000, 0, 255);
+    int second_ratio = map(millis() - last_sec_five_millis, 0, 5000, 0, 255);
     led_state[1][show_second/5] = 255 - second_ratio;
     led_state[1][((show_second/5) == 11 ? 0 : (show_second/5)+1)] = second_ratio;
 
@@ -286,8 +279,8 @@ void showTime(int show_hour, int show_minute, int show_second, unsigned long mil
     int hour = (show_hour > 12 ? show_hour-12 : show_hour)-1;
     led_state[0][hour] = 255 - hour_ratio;
     led_state[0][((hour) == 12 ? 0 : hour+1)] = hour_ratio;
-
-    showLeds(milliseconds);
+    
+    showLeds(40);
 }
 
 void checkButtonState()
@@ -296,41 +289,41 @@ void checkButtonState()
     bool btn_is_pressed = analogRead(BTN_PIN) > 100 ? false : true;
 
     //If a long press was registered in the last loop, and user is still pushing, ignore it
-    if(!BTN_IGNORE)
+    if(!btn_ignore)
     {
         //If the button is being pressed now and was not being pressed before, start counting press time
-        if(btn_is_pressed && !BTN_WAS_DOWN)
+        if(btn_is_pressed && !btn_was_down)
         {
-            BTN_DOWN_STARTED = millis();
+            btn_down_started = millis();
         }
 
         //If button is not pressed now and was pressed before, register short press
-        if(!btn_is_pressed && BTN_WAS_DOWN)
+        if(!btn_is_pressed && btn_was_down)
         {
-            BTN_DOWN_SHORT = true;
+            btn_down_short = true;
         }
         else
         {
-            BTN_DOWN_SHORT = false;
+            btn_down_short = false;
         }
       
         //If button is pressed now and has been pressed for more than 2 sec, register long press
-        if(btn_is_pressed && BTN_WAS_DOWN && (millis() - BTN_DOWN_STARTED) > 2000)
+        if(btn_is_pressed && btn_was_down && (millis() - btn_down_started) > 2000)
         {
-            BTN_DOWN_LONG = true;
+            btn_down_long = true;
             
             //Ignore the button press until the user lets go
-            BTN_IGNORE = true;
+            btn_ignore = true;
         }
         else
         {
-            BTN_DOWN_LONG = false;
+            btn_down_long = false;
         }
     }
     
     //If the user last did a long press and now they have let go, do not ignore button press anymore
     if(!btn_is_pressed)
     {
-        BTN_IGNORE = false;
+        btn_ignore = false;
     }
 }
