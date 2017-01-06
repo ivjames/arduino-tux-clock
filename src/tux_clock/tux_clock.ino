@@ -13,7 +13,7 @@ const int BTN_PIN = A7;
 bool btn_down_short = false;
 bool btn_down_long = false;
 bool btn_ignore = false;
-bool btn_was_down;
+bool btn_was_down = false;
 unsigned long btn_down_started = 0;
 
 //Contains the current led output
@@ -34,12 +34,20 @@ int led_state[3][13] = {
 int last_sec_five = 0;
 unsigned long last_sec_five_millis = 0;
 
+//Keep track of show date
+int show_date_speed = 1000; //in milliseconds
+unsigned long show_date_last_millis = 0;
+
 //Needed to keep track of time edit inputs
+int edit_date_year = 1;
+int edit_date_month = 1;
+int edit_date_day = 1;
 int edit_time_hour = 1;
 int edit_time_min = 1;
+int edit_weekday = 1;
 
 //RTC time
-int rtc[7];
+int rtc[7]; //sec,min,hour,dow,day,month,year
 unsigned long rtc_last_refreshed = 0;
 
 //The state to keep track of navigation
@@ -52,6 +60,8 @@ void setup()
     state = "rtc_setup";
     setupRtc();
 
+    setTime(rtc[0], rtc[1], rtc[2], rtc[3], 6, 1, 17);
+    
     state = "setup_pins";
     setupPins();
 
@@ -81,91 +91,187 @@ void loop()
         last_sec_five_millis = millis();
     }
     
-    if(state == "edit_minute")
-    {
-        if(btn_down_long)
-        {
-            //User just finished editing the time, set the entered time in RTC
-            setTime(17, 1, 1, edit_time_hour, edit_time_min, 0, 7);
-            state = "show_time";
-        }
-        else
-        {
-            //The time is currently being edited, the user is entering the minute
-            edit_time_min = editMinute(edit_time_min);
-        }
-    }
-    else if(state == "edit_hour")
+    if(state == "edit_hour")
     {
         if(btn_down_long)
         {
             //Enter minute edit process
-            editMinute(rtc[1]);
             state = "edit_minute";
         }
         else
         {
             //The time is currently being edited, the user is entering the hour
-            edit_time_hour = editHour(edit_time_hour);
+            editHour();
+        }
+    }
+    else if(state == "edit_minute")
+    {
+        if(btn_down_long)
+        {
+            //User just finished editing the time, set the entered time in RTC
+            setTime(0, edit_time_min, edit_time_hour, rtc[3], rtc[4], rtc[5], rtc[6]);
+            state = "show_time";
+        }
+        else
+        {
+            //The time is currently being edited, the user is entering the minute
+            editMinute();
+        }
+    }
+    else if(state == "show_date")
+    {
+        show_date_last_millis = millis();
+        state = "show_month_1";
+    }
+    else if(state == "show_month_1")
+    {
+        if(btn_down_short){ state = "show_time"; }
+        
+        if(millis() - show_date_last_millis > 1000)
+        {
+            show_date_last_millis = millis();
+            state = "show_month_2";
+        }
+        else
+        {
+            showMonth(rtc[5], 1);
+        }
+    }
+    else if(state == "show_month_2")
+    {
+        if(btn_down_short){ state = "show_time"; }
+        
+        if(millis() - show_date_last_millis > 1000)
+        {
+            show_date_last_millis = millis();
+            state = "show_day_1";
+        }
+        else
+        {
+            showMonth(rtc[5], 2);
+        }
+    }
+    else if(state == "show_day_1")
+    {
+        if(btn_down_short){ state = "show_time"; }
+        
+        if(millis() - show_date_last_millis > 1000)
+        {
+            show_date_last_millis = millis();
+            state = "show_day_2";
+        }
+        else
+        {
+            showDay(rtc[4], 1);
+        }
+    }
+    else if(state == "show_day_2")
+    {
+        if(btn_down_short){ state = "show_time"; }
+        
+        if(millis() - show_date_last_millis > 1000)
+        {
+            show_date_last_millis = millis();
+            state = "show_year_1";
+        }
+        else
+        {
+            showDay(rtc[4], 2);
+        }
+    }
+    else if(state == "show_year_1")
+    {
+        if(btn_down_short){ state = "show_time"; }
+        
+        if(millis() - show_date_last_millis > 1000)
+        {
+            show_date_last_millis = millis();
+            state = "show_year_2";
+        }
+        else
+        {
+            showYear(rtc[6], 1);
+        }
+    }
+    else if(state == "show_year_2")
+    {
+        if(btn_down_short){ state = "show_time"; }
+        
+        if(millis() - show_date_last_millis > 1000)
+        {
+            show_date_last_millis = millis();
+            state = "show_month_1";
+        }
+        else
+        {
+            showYear(rtc[6], 2);
         }
     }
     else
     {
-        if(btn_down_long)
+        if(btn_down_short)
+        {
+            state = "show_date";
+        }
+        else if(btn_down_long)
         {
             //Enter time editing mode, starting with editing the hour
-            editHour(rtc[2]);
             state = "edit_hour";
         }
-        else
-        {
-            showTime(rtc[2], rtc[1], rtc[0]);
-        }
+        
+        showTime(rtc[2], rtc[1], rtc[0]);
     }
 }
 
-void setTime(int year, int month, int date, int hour, int minute, int second, int dow)
+void setTime(int sec, int min, int hour, int dow, int day, int month, int year)
 {
     RTC.stop();
-    RTC.set(DS1307_SEC, second);
-    RTC.set(DS1307_MIN, minute);
+    RTC.set(DS1307_SEC, sec);
+    RTC.set(DS1307_MIN, min);
     RTC.set(DS1307_HR, hour);
-    RTC.set(DS1307_DATE, date);
+    RTC.set(DS1307_DOW, dow);
+    RTC.set(DS1307_DATE, day);
     RTC.set(DS1307_MTH, month);
     RTC.set(DS1307_YR, year);
-    RTC.set(DS1307_DOW, dow);
+    
     RTC.start();
     RTC.SetOutput(DS1307_SQW32KHZ);
     RTC.get(rtc, true);
 }
 
-int editMinute(int value)
+void editHour()
 {
-    int minute_ratio = map(((value % 5)*10), 0, 50, 0, 255);
-    int minute = (value/5)-1;
+    if(state != "edit_hour")
+    {
+        edit_time_hour = rtc[2];
+    }
+    
+    led_state[0][edit_time_hour-1] = 255;
+    showLeds(10);
+
+    if(btn_down_short)
+    {
+        edit_time_hour = (edit_time_hour > 11 ? edit_time_hour = 1 : edit_time_hour + 1);
+    }
+}
+
+void editMinute()
+{
+    if(state != "edit_minute")
+    {
+        edit_time_min = rtc[1];
+    }
+    
+    int minute_ratio = map(((edit_time_min % 5)*10), 0, 50, 0, 255);
+    int minute = (edit_time_min/5)-1;
     led_state[2][minute] = 255 - minute_ratio;
     led_state[2][(minute == 11 ? 0 : minute+1)] = minute_ratio;
     showLeds(10);
 
     if(btn_down_short)
     {
-        value = (value > 60 ? value = 1 : value + 1);
+        edit_time_min = (edit_time_min > 60 ? edit_time_min = 1 : edit_time_min + 1);
     }
-
-    return value;
-}
-
-int editHour(int value)
-{
-    led_state[0][value-1] = 255;
-    showLeds(10);
-
-    if(btn_down_short)
-    {
-        value = (value > 11 ? value = 1 : value + 1);
-    }
-
-    return value;
 }
 
 void setupPins()
@@ -283,11 +389,85 @@ void showTime(int show_hour, int show_minute, int show_second)
     showLeds(40);
 }
 
+void showMonth(int show_month, int position)
+{
+    show_month = nthClockDigit(show_month, position);
+    if(show_month != 0)
+    {
+        led_state[0][show_month] = 255;
+        showLeds(40);
+    }
+    else
+    {
+        delayMicroseconds(40000);
+    }
+}
+
+void showDay(int show_day, int position)
+{
+    show_day = nthClockDigit(show_day, position);
+    if(show_day != 0)
+    {
+        led_state[1][show_day] = 255;
+        showLeds(40);
+    }
+    else
+    {
+        delayMicroseconds(40000);
+    }
+}
+
+void showYear(int show_year, int position)
+{
+    if(show_year > 99){ show_year = show_year % 100; }
+
+    show_year = nthClockDigit(show_year, position);
+    if(show_year != 0)
+    {
+        led_state[2][show_year] = 255;
+        showLeds(40);
+    }
+    else
+    {
+        delayMicroseconds(40000);
+    }
+}
+
+char nthClockDigit(int x, int n)
+{
+    if(n <= 0 || n >= 100){ return 0; }
+    if(n == 2 && x > 9 && x <= 19){ return x - 10; } 
+    if(n == 2 && x > 19 && x <= 29){ return x - 20; } 
+    if(n == 2 && x > 29 && x <= 39){ return x - 30; } 
+    if(n == 2 && x > 39 && x <= 49){ return x - 40; } 
+    if(n == 2 && x > 49 && x <= 59){ return x - 50; } 
+    if(n == 2 && x > 59 && x <= 69){ return x - 60; } 
+    if(n == 2 && x > 69 && x <= 79){ return x - 70; } 
+    if(n == 2 && x > 79 && x <= 89){ return x - 80; } 
+    if(n == 2 && x > 89 && x <= 99){ return x - 90; } 
+    if(n == 1 && x < 10){ return x; }
+    if(n == 1 && x > 9 && x < 20){ return 1; }
+    if(n == 1 && x > 19 && x < 30){ return 2; }
+    if(n == 1 && x > 29 && x < 40){ return 3; }
+    if(n == 1 && x > 39 && x < 50){ return 4; }
+    if(n == 1 && x > 49 && x < 60){ return 5; }
+    if(n == 1 && x > 59 && x < 70){ return 6; }
+    if(n == 1 && x > 69 && x < 80){ return 7; }
+    if(n == 1 && x > 79 && x < 90){ return 8; }
+    if(n == 1 && x > 89 && x < 100){ return 9; }
+}
+
 void checkButtonState()
 {
     //Is the button being press right now
     bool btn_is_pressed = analogRead(BTN_PIN) > 100 ? false : true;
 
+    //If the button long press was registered in the last loop, stop it in this loop
+    if(btn_down_long)
+    {
+        btn_down_long = false;
+    }
+    
     //If a long press was registered in the last loop, and user is still pushing, ignore it
     if(!btn_ignore)
     {
@@ -322,8 +502,11 @@ void checkButtonState()
     }
     
     //If the user last did a long press and now they have let go, do not ignore button press anymore
-    if(!btn_is_pressed)
+    if(btn_was_down && !btn_is_pressed)
     {
         btn_ignore = false;
     }
+    
+    //Let this loops button state be known in the next loop
+    btn_was_down = btn_is_pressed;
 }
