@@ -33,6 +33,7 @@ int led_state[3][13] = {
 //Keep track of milliseconds between seconds
 int last_sec_five = 0;
 unsigned long last_sec_five_millis = 0;
+int last_loop_millis = 0;
 
 //Keep track of show date
 int show_date_speed = 4000; //in milliseconds
@@ -54,6 +55,10 @@ unsigned long rtc_last_refreshed = 0;
 //The state to keep track of navigation
 String state = "";
 
+//The brightness level of the LEDs
+int brightness = 10; //1 - 10
+int edit_brightness_state = 1;
+
 void setup()
 {
     Serial.begin(9600);
@@ -74,6 +79,8 @@ void setup()
 
 void loop()
 {
+    unsigned long current_millis = millis();
+    
     checkButtonState();
     
     //Refresh RTC time buffer every minute
@@ -301,17 +308,44 @@ void loop()
     }
     else if(state == "show_dow")
     {
-        
+        if(btn_down_short)
+        {
+            state = "show_brightness";
+        }
+        else if(btn_down_long)
+        {
+            state = "edit_dow";
+        }
+        else
+        {
+            showDow(rtc[3]);
+        }
+    }
+    else if(state == "edit_brightness")
+    {
+        if(btn_down_long)
+        {
+            state = "show_brightness";
+        }
+        else
+        {
+            editBrightness();
+        }
+    }
+    else if(state == "show_brightness")
+    {
         if(btn_down_short)
         {
             state = "show_time";
         }
         if(btn_down_long)
         {
-            state = "edit_dow";
+            state = "edit_brightness";
         }
-        
-        showDow(rtc[3]);
+        else
+        {
+            showBrightness();
+        }
     }
     else
     {
@@ -323,9 +357,13 @@ void loop()
         {
             state = "edit_time";
         }
-        
-        showTime(rtc[2], rtc[1], rtc[0]);
+        else
+        {
+            showTime(rtc[2], rtc[1], rtc[0]);
+        }
     }
+    
+    last_loop_millis = millis() - current_millis;
 }
 
 void setDateTime(int sec, int min, int hour, int dow, int day, int month, int year)
@@ -518,27 +556,27 @@ void editDow()
     }
     int intensity = (millis() - edit_date_blink_millis < 1000 ? 255 : 100);
     
-    ledSet('r', 1, 15);
-    ledSet('g', 1, 15);
-    ledSet('b', 1, 15);
-    ledSet('r', 2, 15);
-    ledSet('g', 2, 15);
-    ledSet('b', 2, 15);
-    ledSet('r', 3, 15);
-    ledSet('g', 3, 15);
-    ledSet('b', 3, 15);
-    ledSet('r', 4, 15);
-    ledSet('g', 4, 15);
-    ledSet('b', 4, 15);
-    ledSet('r', 5, 15);
-    ledSet('g', 5, 15);
-    ledSet('b', 5, 15);
-    ledSet('r', 6, 15);
-    ledSet('g', 6, 15);
-    ledSet('b', 6, 15);
-    ledSet('r', 7, 15);
-    ledSet('g', 7, 15);
-    ledSet('b', 7, 15);
+    ledSet('r', 1, 1);
+    ledSet('g', 1, 1);
+    ledSet('b', 1, 1);
+    ledSet('r', 2, 1);
+    ledSet('g', 2, 1);
+    ledSet('b', 2, 1);
+    ledSet('r', 3, 1);
+    ledSet('g', 3, 1);
+    ledSet('b', 3, 1);
+    ledSet('r', 4, 1);
+    ledSet('g', 4, 1);
+    ledSet('b', 4, 1);
+    ledSet('r', 5, 1);
+    ledSet('g', 5, 1);
+    ledSet('b', 5, 1);
+    ledSet('r', 6, 1);
+    ledSet('g', 6, 1);
+    ledSet('b', 6, 1);
+    ledSet('r', 7, 1);
+    ledSet('g', 7, 1);
+    ledSet('b', 7, 1);
     ledSet('r', edit_weekday, intensity);
     ledSet('g', edit_weekday, intensity);
     ledSet('b', edit_weekday, intensity);
@@ -562,6 +600,9 @@ void setupPins()
 
 void showLeds(unsigned long milliseconds)
 {
+    //Flicker fix due to long loop times
+    int delay_max = map(last_loop_millis, 0, 120, 4000, 1000);
+    
     char colors[3] = {'r','g','b'};
     unsigned long starttime = millis();
     unsigned long endtime = starttime;
@@ -571,7 +612,8 @@ void showLeds(unsigned long milliseconds)
         {
             for(int c=0; c < 3 ; c++)
             {
-                int intensity_delay = map(ledGet(colors[c], p+1), 0, 255, 0, 2000);
+                int with_dim = map(brightness, 1, 10, 0, ledGet(colors[c], p+1));
+                int intensity_delay = map(with_dim, 0, 255, 0, delay_max);
                 
                 if(intensity_delay > 0)
                 {
@@ -588,9 +630,9 @@ void showLeds(unsigned long milliseconds)
                     digitalWrite(LED_CATD_PIN[p], HIGH);
                     pin_state[c][p] = 0;
                 }
-                if(2000 - intensity_delay > 0)
+                if(delay_max - intensity_delay > 0)
                 {
-                    delayMicroseconds((2000 - intensity_delay)/16);
+                    delayMicroseconds((delay_max - intensity_delay)/16);
                 }
                 if(pin_state[c][p] == 1)
                 {
@@ -617,9 +659,9 @@ void ledTest()
     char colors[3] = {'r','g','b'};
     for(int c=0; c < 3 ; c++)
     {
-        for(int p=0; p < 12; p++)
+        for(int p=1; p <= 12; p++)
         {
-            ledSet(colors[c], p+1, 255);
+            ledSet(colors[c], p, 255);
             showLeds(50);
         }
     }
@@ -800,6 +842,36 @@ void showDow(int show_dow)
     ledSet('g', show_dow, 255);
     ledSet('b', show_dow, 255);
     showLeds(40);
+}
+
+void showBrightness()
+{
+    ledSet('r', 1, 255); ledSet('r', 2, 255); 
+    ledSet('r', 3, 255); ledSet('r', 4, 255);
+    ledSet('g', 5, 255); ledSet('g', 6, 255); 
+    ledSet('g', 7, 255); ledSet('g', 8, 255);
+    ledSet('b', 9, 255); ledSet('b', 10, 255); 
+    ledSet('b', 11, 255); ledSet('b', 12, 255);
+    showLeds(100);
+}
+
+void editBrightness()
+{
+    if(btn_down_short)
+    {
+        brightness = (brightness >= 10 ? brightness = 2 : brightness + 2);
+    }
+    
+    edit_brightness_state = (edit_brightness_state >= 12 ? edit_brightness_state = 1 : edit_brightness_state + 1);
+    int p = edit_brightness_state;
+    
+    ledSet('r', 1, (p == 1 ? 255 : 50)); ledSet('r', 2, (p == 2 ? 255 : 50)); 
+    ledSet('r', 3, (p == 3 ? 255 : 50)); ledSet('r', 4, (p == 4 ? 255 : 50));
+    ledSet('g', 5, (p == 5 ? 255 : 50)); ledSet('g', 6, (p == 6 ? 255 : 50)); 
+    ledSet('g', 7, (p == 7 ? 255 : 50)); ledSet('g', 8, (p == 8 ? 255 : 50));
+    ledSet('b', 9, (p == 9 ? 255 : 50)); ledSet('b', 10, (p == 10 ? 255 : 50)); 
+    ledSet('b', 11, (p == 11 ? 255 : 50)); ledSet('b', 12, (p == 12 ? 255 : 50));
+    showLeds(50);
 }
 
 int nthClockDigit(int x, int n)
