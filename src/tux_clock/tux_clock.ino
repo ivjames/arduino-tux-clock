@@ -60,7 +60,7 @@ void setup()
     state = "rtc_setup";
     setupRtc();
 
-    setTime(rtc[0], rtc[1], rtc[2], rtc[3], 6, 1, 17);
+    //setDateTime(rtc[0], rtc[1], rtc[2], rtc[3], rtc[4], rtc[5], rtc[6]);
     
     state = "setup_pins";
     setupPins();
@@ -91,16 +91,27 @@ void loop()
         last_sec_five_millis = millis();
     }
     
+    if(state == "edit_time")
+    {
+        state == "edit_hour";
+    }
+    else if(state == "edit_date")
+    {
+        state = "edit_month_1";
+    }
+    else if(state == "show_date")
+    {
+        show_date_last_millis = millis();
+        state = "show_month_1";
+    }
     if(state == "edit_hour")
     {
         if(btn_down_long)
         {
-            //Enter minute edit process
             state = "edit_minute";
         }
         else
         {
-            //The time is currently being edited, the user is entering the hour
             editHour();
         }
     }
@@ -109,25 +120,25 @@ void loop()
         if(btn_down_long)
         {
             //User just finished editing the time, set the entered time in RTC
-            setTime(0, edit_time_min, edit_time_hour, rtc[3], rtc[4], rtc[5], rtc[6]);
+            setDateTime(0, edit_time_min, edit_time_hour, rtc[3], rtc[4], rtc[5], rtc[6]);
             state = "show_time";
         }
         else
         {
-            //The time is currently being edited, the user is entering the minute
             editMinute();
         }
     }
-    else if(state == "show_date")
-    {
-        show_date_last_millis = millis();
-        state = "show_month_1";
-    }
     else if(state == "show_month_1")
     {
-        if(btn_down_short){ state = "show_time"; }
-        
-        if(millis() - show_date_last_millis > 1000)
+        if(btn_down_short)
+        {
+            state = "show_time";
+        }
+        else if(btn_down_long)
+        {
+            state = "edit_date";
+        }
+        else if(millis() - show_date_last_millis > 1000)
         {
             show_date_last_millis = millis();
             state = "show_month_2";
@@ -139,9 +150,15 @@ void loop()
     }
     else if(state == "show_month_2")
     {
-        if(btn_down_short){ state = "show_time"; }
-        
-        if(millis() - show_date_last_millis > 1000)
+        if(btn_down_short)
+        {
+            state = "show_time";
+        }
+        else if(btn_down_long)
+        {
+            state = "edit_date";
+        }
+        else if(millis() - show_date_last_millis > 1000)
         {
             show_date_last_millis = millis();
             state = "show_day_1";
@@ -153,9 +170,15 @@ void loop()
     }
     else if(state == "show_day_1")
     {
-        if(btn_down_short){ state = "show_time"; }
-        
-        if(millis() - show_date_last_millis > 1000)
+        if(btn_down_short)
+        {
+            state = "show_time";
+        }
+        else if(btn_down_long)
+        {
+            state = "edit_date";
+        }
+        else if(millis() - show_date_last_millis > 1000)
         {
             show_date_last_millis = millis();
             state = "show_day_2";
@@ -167,9 +190,15 @@ void loop()
     }
     else if(state == "show_day_2")
     {
-        if(btn_down_short){ state = "show_time"; }
-        
-        if(millis() - show_date_last_millis > 1000)
+        if(btn_down_short)
+        {
+            state = "show_time";
+        }
+        else if(btn_down_long)
+        {
+            state = "edit_date";
+        }
+        else if(millis() - show_date_last_millis > 1000)
         {
             show_date_last_millis = millis();
             state = "show_year_1";
@@ -181,9 +210,15 @@ void loop()
     }
     else if(state == "show_year_1")
     {
-        if(btn_down_short){ state = "show_time"; }
-        
-        if(millis() - show_date_last_millis > 1000)
+        if(btn_down_short)
+        {
+            state = "show_time";
+        }
+        else if(btn_down_long)
+        {
+            state = "edit_date";
+        }
+        else if(millis() - show_date_last_millis > 1000)
         {
             show_date_last_millis = millis();
             state = "show_year_2";
@@ -195,9 +230,15 @@ void loop()
     }
     else if(state == "show_year_2")
     {
-        if(btn_down_short){ state = "show_time"; }
-        
-        if(millis() - show_date_last_millis > 1000)
+        if(btn_down_short)
+        {
+            state = "show_time";
+        }
+        else if(btn_down_long)
+        {
+            state = "edit_date";
+        }
+        else if(millis() - show_date_last_millis > 1000)
         {
             show_date_last_millis = millis();
             state = "show_month_1";
@@ -205,6 +246,73 @@ void loop()
         else
         {
             showYear(rtc[6], 2);
+        }
+    }
+    else if(state == "edit_month_1")
+    {
+        if(btn_down_long)
+        {
+            state = "edit_month_2";
+        }
+        else
+        {
+            editMonth(1);
+        }
+    }
+    else if(state == "edit_month_2")
+    {
+        if(btn_down_long)
+        {
+            state = "edit_day_1";
+        }
+        else
+        {
+            editMonth(2);
+        }
+    }
+    else if(state == "edit_day_1")
+    {
+        if(btn_down_long)
+        {
+            state = "edit_day_2";
+        }
+        else
+        {
+            editDay(1);
+        }
+    }
+    else if(state == "edit_day_2")
+    {
+        if(btn_down_long)
+        {
+            state = "edit_year_1";
+        }
+        else
+        {
+            editDay(2);
+        }
+    }
+    else if(state == "edit_year_1")
+    {
+        if(btn_down_long)
+        {
+            state = "edit_year_2";
+        }
+        else
+        {
+            editYear(1);
+        }
+    }
+    else if(state == "edit_year_2")
+    {
+        if(btn_down_long)
+        {
+            setDateTime(0, rtc[1], rtc[2], rtc[3], edit_date_day, edit_date_month, edit_date_year);
+            state = "show_date";
+        }
+        else
+        {
+            editYear(2);
         }
     }
     else
@@ -215,15 +323,14 @@ void loop()
         }
         else if(btn_down_long)
         {
-            //Enter time editing mode, starting with editing the hour
-            state = "edit_hour";
+            state = "edit_time";
         }
         
         showTime(rtc[2], rtc[1], rtc[0]);
     }
 }
 
-void setTime(int sec, int min, int hour, int dow, int day, int month, int year)
+void setDateTime(int sec, int min, int hour, int dow, int day, int month, int year)
 {
     RTC.stop();
     RTC.set(DS1307_SEC, sec);
@@ -237,6 +344,21 @@ void setTime(int sec, int min, int hour, int dow, int day, int month, int year)
     RTC.start();
     RTC.SetOutput(DS1307_SQW32KHZ);
     RTC.get(rtc, true);
+}
+
+void editYear(int position)
+{
+    
+}
+
+void editMonth(int position)
+{
+    
+}
+
+void editDay(int position)
+{
+    
 }
 
 void editHour()
@@ -300,7 +422,7 @@ void showLeds(unsigned long milliseconds)
         {
             for(int c=0; c < 3 ; c++)
             {
-                if(ledGet[colors[c]][p] > 0)
+                if(ledGet(colors[c], p) > 0)
                 {
                     if(p >= 1 || p <= 12)
                     {
@@ -311,7 +433,7 @@ void showLeds(unsigned long milliseconds)
                             pin_state[c][p] = 255;
                         }
                     }
-                    delayMicroseconds(map(ledGet[colors[c]][p], 0, 255, 1, 2000));
+                    delayMicroseconds(map(ledGet(colors[c], p), 0, 255, 1, 2000));
                 }
 
                 if(p >= 1 || p <= 12)
@@ -332,7 +454,7 @@ void showLeds(unsigned long milliseconds)
     {
         for(int c=0; c < 3 ; c++)
         {
-            ledSet[colors[c]][p] = 0;
+            ledSet(colors[c], p, 0);
         }
     }
 }
@@ -395,29 +517,40 @@ void showTime(int show_hour, int show_minute, int show_second)
 void showMonth(int show_month, int position)
 {
     show_month = nthClockDigit(show_month, position);
+    
+    ledSet('r', show_month-9, (position == 1 ? 255 : 75));
+    ledSet('r', show_month-8, (position == 2 ? 255 : 75));
+    ledSet('r', show_month-7, 25);
+    ledSet('r', show_month-6, 75);
+    ledSet('r', show_month-5, 75);
+    ledSet('r', show_month-4, 25);
+    ledSet('r', show_month-3, 75);
+    ledSet('r', show_month-2, 75);
+    ledSet('r', show_month-1, 25);
     if(show_month != 0)
     {
-        ledSet('r', show_month, 255);
-        showLeds(40);
+        ledSet('b', show_month, 255);
     }
-    else
-    {
-        delayMicroseconds(40000);
-    }
+    showLeds(40);
 }
 
 void showDay(int show_day, int position)
 {
     show_day = nthClockDigit(show_day, position);
+    ledSet('r', show_day-9, 75);
+    ledSet('r', show_day-8, 75);
+    ledSet('r', show_day-7, 25);
+    ledSet('r', show_day-6, (position == 1 ? 255 : 75));
+    ledSet('r', show_day-5, (position == 2 ? 255 : 75));
+    ledSet('r', show_day-4, 25);
+    ledSet('r', show_day-3, 75);
+    ledSet('r', show_day-2, 75);
+    ledSet('r', show_day-1, 25);
     if(show_day != 0)
     {
-        ledSet('g', show_day, 255);
-        showLeds(40);
+        ledSet('b', show_day, 255);
     }
-    else
-    {
-        delayMicroseconds(40000);
-    }
+    showLeds(40);
 }
 
 void showYear(int show_year, int position)
@@ -429,6 +562,17 @@ void showYear(int show_year, int position)
     {
         ledSet('b', show_year, 255);
         showLeds(40);
+        ledSet('r', show_year-9, 75);
+        ledSet('r', show_year-8, 75);
+        ledSet('r', show_year-7, 25);
+        ledSet('r', show_year-6, 75);
+        ledSet('r', show_year-5, 75);
+        ledSet('r', show_year-4, 25);
+        ledSet('r', show_year-3, (position == 1 ? 255 : 75));
+        ledSet('r', show_year-2, (position == 2 ? 255 : 75));
+        ledSet('r', show_year-1, 25);
+        ledSet('b', show_year, 255);
+        showLeds(40);
     }
     else
     {
@@ -438,7 +582,7 @@ void showYear(int show_year, int position)
 
 int nthClockDigit(int x, int n)
 {
-    if(n <= 0 || n >= 100){ return 0; }
+    if(x <= 0 || x >= 100){ return 0; }
     if(n == 2 && x > 9 && x <= 19){ return x - 10; } 
     if(n == 2 && x > 19 && x <= 29){ return x - 20; } 
     if(n == 2 && x > 29 && x <= 39){ return x - 30; } 
