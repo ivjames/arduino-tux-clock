@@ -75,11 +75,6 @@ void setup()
 void loop()
 {
     checkButtonState();
-    Serial.print(edit_time_hour);
-    Serial.print(" ");
-    Serial.print(edit_time_min);
-    Serial.print(" ");
-    Serial.println(state);
     
     //Refresh RTC time buffer every minute
     if(millis() - rtc_last_refreshed > 1000 || rtc_last_refreshed > millis())
@@ -140,7 +135,7 @@ void loop()
     {
         if(btn_down_short)
         {
-            state = "show_time";
+            state = "show_dow";
         }
         else if(btn_down_long)
         {
@@ -160,7 +155,7 @@ void loop()
     {
         if(btn_down_short)
         {
-            state = "show_time";
+            state = "show_dow";
         }
         else if(btn_down_long)
         {
@@ -180,7 +175,7 @@ void loop()
     {
         if(btn_down_short)
         {
-            state = "show_time";
+            state = "show_dow";
         }
         else if(btn_down_long)
         {
@@ -200,7 +195,7 @@ void loop()
     {
         if(btn_down_short)
         {
-            state = "show_time";
+            state = "show_dow";
         }
         else if(btn_down_long)
         {
@@ -220,7 +215,7 @@ void loop()
     {
         if(btn_down_short)
         {
-            state = "show_time";
+            state = "show_dow";
         }
         else if(btn_down_long)
         {
@@ -291,6 +286,32 @@ void loop()
         {
             editYear(2);
         }
+    }
+    else if(state == "edit_dow")
+    {
+        if(btn_down_long)
+        {
+            setDateTime(0, rtc[1], rtc[2], edit_weekday, rtc[4], rtc[5], rtc[6]);
+            state = "show_dow";
+        }
+        else
+        {
+            editDow();
+        }
+    }
+    else if(state == "show_dow")
+    {
+        
+        if(btn_down_short)
+        {
+            state = "show_time";
+        }
+        if(btn_down_long)
+        {
+            state = "edit_dow";
+        }
+        
+        showDow(rtc[3]);
     }
     else
     {
@@ -469,13 +490,58 @@ void editMinute()
     
     if(btn_down_short)
     {
-        edit_time_min = (edit_time_min > 60 ? edit_time_min = 1 : edit_time_min + 1);
+        edit_time_min = (edit_time_min >= 59 ? edit_time_min = 1 : edit_time_min + 1);
     }
     
     int minute_ratio = map(((edit_time_min % 5)*10), 0, 50, 0, 255);
     int minute = (edit_time_min/5);
     ledSet('b', minute, 255-minute_ratio);
     ledSet('b', minute+1, minute_ratio);
+    showLeds(40);
+}
+
+void editDow()
+{
+    if(edit_weekday == 0)
+    {
+        edit_weekday = rtc[3];
+    }
+    
+    if(btn_down_short)
+    {
+        edit_weekday = (edit_weekday >= 7 ? edit_weekday = 1 : edit_weekday + 1);
+    }
+    
+    if(millis() - edit_date_blink_millis > 2000)
+    {
+        edit_date_blink_millis = millis();
+    }
+    int intensity = (millis() - edit_date_blink_millis < 1000 ? 255 : 100);
+    
+    ledSet('r', 1, 15);
+    ledSet('g', 1, 15);
+    ledSet('b', 1, 15);
+    ledSet('r', 2, 15);
+    ledSet('g', 2, 15);
+    ledSet('b', 2, 15);
+    ledSet('r', 3, 15);
+    ledSet('g', 3, 15);
+    ledSet('b', 3, 15);
+    ledSet('r', 4, 15);
+    ledSet('g', 4, 15);
+    ledSet('b', 4, 15);
+    ledSet('r', 5, 15);
+    ledSet('g', 5, 15);
+    ledSet('b', 5, 15);
+    ledSet('r', 6, 15);
+    ledSet('g', 6, 15);
+    ledSet('b', 6, 15);
+    ledSet('r', 7, 15);
+    ledSet('g', 7, 15);
+    ledSet('b', 7, 15);
+    ledSet('r', edit_weekday, intensity);
+    ledSet('g', edit_weekday, intensity);
+    ledSet('b', edit_weekday, intensity);
     showLeds(40);
 }
 
@@ -705,6 +771,35 @@ void showYear(int show_year, int position)
         }
         showLeds(40);
     }
+}
+
+void showDow(int show_dow)
+{
+    ledSet('r', 1, 15);
+    ledSet('g', 1, 15);
+    ledSet('b', 1, 15);
+    ledSet('r', 2, 15);
+    ledSet('g', 2, 15);
+    ledSet('b', 2, 15);
+    ledSet('r', 3, 15);
+    ledSet('g', 3, 15);
+    ledSet('b', 3, 15);
+    ledSet('r', 4, 15);
+    ledSet('g', 4, 15);
+    ledSet('b', 4, 15);
+    ledSet('r', 5, 15);
+    ledSet('g', 5, 15);
+    ledSet('b', 5, 15);
+    ledSet('r', 6, 15);
+    ledSet('g', 6, 15);
+    ledSet('b', 6, 15);
+    ledSet('r', 7, 15);
+    ledSet('g', 7, 15);
+    ledSet('b', 7, 15);
+    ledSet('r', show_dow, 255);
+    ledSet('g', show_dow, 255);
+    ledSet('b', show_dow, 255);
+    showLeds(40);
 }
 
 int nthClockDigit(int x, int n)
