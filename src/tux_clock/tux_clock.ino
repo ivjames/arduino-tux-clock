@@ -1,4 +1,5 @@
 #include <Wire.h>
+#include <Math.h>
 
 //Library found at:
 //http://www.dfrobot.com/image/data/DFR0151/V1.1/Arduino%20library.zip
@@ -869,26 +870,12 @@ void editBrightness()
 int nthClockDigit(int x, int n)
 {
     if(x <= 0 || x >= 100){ return 0; }
-    if(n == 2 && x < 10){ return x; } 
-    if(n == 2 && x > 9 && x <= 19){ return x - 10; } 
-    if(n == 2 && x > 19 && x <= 29){ return x - 20; } 
-    if(n == 2 && x > 29 && x <= 39){ return x - 30; } 
-    if(n == 2 && x > 39 && x <= 49){ return x - 40; } 
-    if(n == 2 && x > 49 && x <= 59){ return x - 50; } 
-    if(n == 2 && x > 59 && x <= 69){ return x - 60; } 
-    if(n == 2 && x > 69 && x <= 79){ return x - 70; } 
-    if(n == 2 && x > 79 && x <= 89){ return x - 80; } 
-    if(n == 2 && x > 89 && x <= 99){ return x - 90; } 
-    if(n == 1 && x < 10){ return 0; }
-    if(n == 1 && x > 9 && x < 20){ return 1; }
-    if(n == 1 && x > 19 && x < 30){ return 2; }
-    if(n == 1 && x > 29 && x < 40){ return 3; }
-    if(n == 1 && x > 39 && x < 50){ return 4; }
-    if(n == 1 && x > 49 && x < 60){ return 5; }
-    if(n == 1 && x > 59 && x < 70){ return 6; }
-    if(n == 1 && x > 69 && x < 80){ return 7; }
-    if(n == 1 && x > 79 && x < 90){ return 8; }
-    if(n == 1 && x > 89 && x < 100){ return 9; }
+    if(n == 2) {
+        return x-floor(x/10)*10;
+    }
+    if(n == 1){
+        return floor(x/10);
+    }
 }
 
 void ledSet(char color, int led, int intensity)
